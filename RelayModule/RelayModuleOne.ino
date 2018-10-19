@@ -1,10 +1,12 @@
 
 class RelayModuleOne {
   public:
-    int pinReleLightKitchenSmall = 2;
-    int pinSensMoveKitchenSmall = 3;
-    int pinReleLightKitchenBig = 4;
-    int pinSensMoveKitchenBig = 5;
+    int pinReleLightKitchenSmall_12 = 2;
+    int pinReleLightKitchenSmall_220 = 3;
+    int pinSensMoveKitchenSmall = 4;
+    int pinReleLightKitchenBig_220 = 5;
+    int pinSensMoveKitchenBig = 6;
+
 };
 
 
@@ -14,7 +16,7 @@ class Timer {
     long previousMillis = 0;
     unsigned long currentMillis = 0;
     long period = 100;
-    long interval = 20000;
+    long interval = 0;
 };
 
 
@@ -43,19 +45,21 @@ class MotionController {
     };
 
     void lightUpSmallKitchen() {
-      digitalWrite(rmOne.pinReleLightKitchenSmall, HIGH);
+      digitalWrite(rmOne.pinReleLightKitchenSmall_12, HIGH);
+      digitalWrite(rmOne.pinReleLightKitchenSmall_220, HIGH);
     };
 
     void lightUpBigKitchen() {
-      digitalWrite(rmOne.pinReleLightKitchenBig, HIGH);
+      digitalWrite(rmOne.pinReleLightKitchenBig_220, HIGH);
     };
 
     void lightOffSmallKitchen() {
-      digitalWrite(rmOne.pinReleLightKitchenSmall, LOW);
+      digitalWrite(rmOne.pinReleLightKitchenSmall_12, LOW);
+      digitalWrite(rmOne.pinReleLightKitchenSmall_220, LOW);
     };
 
     void lightOffBigKitchen() {
-      digitalWrite(rmOne.pinReleLightKitchenBig, LOW);
+      digitalWrite(rmOne.pinReleLightKitchenBig_220, LOW);
     };
 };
 
@@ -63,12 +67,16 @@ MotionController mCntrl;
 
 void setup() {
   Serial.begin(9600);
-  pinMode(mCntrl.rmOne.pinReleLightKitchenSmall, OUTPUT);
+  pinMode(mCntrl.rmOne.pinReleLightKitchenSmall_12, OUTPUT);
+  pinMode(mCntrl.rmOne.pinReleLightKitchenSmall_220, OUTPUT);
   pinMode(mCntrl.rmOne.pinSensMoveKitchenSmall, INPUT);
-  pinMode(mCntrl.rmOne.pinReleLightKitchenBig, OUTPUT);
+  pinMode(mCntrl.rmOne.pinReleLightKitchenBig_220, OUTPUT);
   pinMode(mCntrl.rmOne.pinSensMoveKitchenBig, INPUT);
-  digitalWrite(mCntrl.rmOne.pinReleLightKitchenSmall, LOW);
-  digitalWrite(mCntrl.rmOne.pinReleLightKitchenSmall, LOW);
+  digitalWrite(mCntrl.rmOne.pinReleLightKitchenSmall_12, LOW);
+  digitalWrite(mCntrl.rmOne.pinReleLightKitchenSmall_220, LOW);
+  digitalWrite(mCntrl.rmOne.pinReleLightKitchenBig_220, LOW);
+  mCntrl.smallKitchenTimer.interval=30000;
+  mCntrl.bigKitchenTimer.interval=60000;
 }
 
 
@@ -117,5 +125,9 @@ void loop() {
     mCntrl.bigKitchenTimer.secondCount += mCntrl.bigKitchenTimer.period;
   }
 
-  
+
+
+
+
+
 }
