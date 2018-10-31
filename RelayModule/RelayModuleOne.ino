@@ -3,10 +3,9 @@ class RelayModuleOne {
   public:
     int pinReleLightKitchenSmall_12 = 2;
     int pinReleLightKitchenSmall_220 = 3;
-    int pinSensMoveKitchenSmall = 4;
     int pinReleLightKitchenBig_220 = 5;
+    int pinSensMoveKitchenSmall = 4;
     int pinSensMoveKitchenBig = 6;
-
 };
 
 
