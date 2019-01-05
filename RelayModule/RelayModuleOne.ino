@@ -3,9 +3,10 @@ class RelayModuleOne {
   public:
     int pinReleLightKitchenSmall_12 = 2;
     int pinReleLightKitchenSmall_220 = 3;
-    int pinReleLightKitchenBig_220 = 5;
     int pinSensMoveKitchenSmall = 4;
+    int pinReleLightKitchenBig_220 = 5;
     int pinSensMoveKitchenBig = 6;
+
 };
 
 
@@ -75,7 +76,7 @@ void setup() {
   digitalWrite(mCntrl.rmOne.pinReleLightKitchenSmall_220, LOW);
   digitalWrite(mCntrl.rmOne.pinReleLightKitchenBig_220, LOW);
   mCntrl.smallKitchenTimer.interval=30000;
-  mCntrl.bigKitchenTimer.interval=60000;
+  mCntrl.bigKitchenTimer.interval=12 0000;
 }
 
 
@@ -123,8 +124,6 @@ void loop() {
     mCntrl.bigKitchenTimer.previousMillis = mCntrl.bigKitchenTimer.currentMillis;
     mCntrl.bigKitchenTimer.secondCount += mCntrl.bigKitchenTimer.period;
   }
-
-
 
 
 
