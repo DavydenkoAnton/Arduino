@@ -18,28 +18,22 @@ void setup(){
   lcd.backlight();  
   pinMode(A1, INPUT);// Включаем подсветку дисплея
   pinMode(2, OUTPUT);
+  digitalWrite(2, HIGH);
 }
 
 void loop(){  
 
   lcd.setCursor(0, 0);  
-  float rzero = gasSensor.getRZero();
-  getMin(rzero);
-  getMax(rzero);
-  getAverage();
-  lcd.print(" -");
-  lcd.print(minimum);
-  lcd.print("|+");
-  lcd.print(maximum);
-  lcd.setCursor(0, 1);
-  lcd.print("+-");
-  lcd.print(average);
-  lcd.print("|N");
+  float rzero = gasSensor.getPPM();
+  int minCO=400;
+  Serial.println(rzero);
   lcd.print(rzero);
-  if(rzero<220){
+  if(rzero > minCO){
     digitalWrite(2, HIGH);
+    Serial.println("true");
   }else{
-      digitalWrite(2, LOW);
+     digitalWrite(2, LOW);
+      Serial.println("false");
       }
   delay(20000);
 }
