@@ -9,8 +9,9 @@
 DHT dht(DHTPIN, DHTTYPE);
 MQ135 gasSensor = MQ135(A1);
 LiquidCrystal_I2C lcd(0x27,16,2);  // Устанавливаем какой дисплей
-int hum = dht.readHumidity(); // Считываем влажность
-int temp = dht.readTemperature();
+const int minCo2=1000;
+int hum = 0;
+int temp = 0;
 
 
 void setup(){
@@ -24,8 +25,8 @@ void setup(){
 }
 
 void loop(){    
-  float co2 = gasSensor.getPPM();
-  int minCo2=400;
+  int co2 = gasSensor.getPPM();
+  
   Serial.println(co2);
   lcd.setCursor(0, 0);
   lcd.print(co2);
