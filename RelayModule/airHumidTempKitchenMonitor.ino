@@ -1,34 +1,41 @@
-#include "Arduino.h"
-#include "Wire.h"                  // подключаем библиотеку I2C
+#include "DHT.h"
 #include "MQ135.h"                 // подключаем библиотеку MQ135
 #include "LiquidCrystal_I2C.h"     // подключаем библиотеку дисплея 
 
+#define DHTPIN 3  // Вывод датчика DATA подключен ко второму пину
+#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 #define mq135PIN A1; // аналоговый выход MQ135 подключен к пину A0 Arduino
 
-
+DHT dht(DHTPIN, DHTTYPE);
 MQ135 gasSensor = MQ135(A1);
 LiquidCrystal_I2C lcd(0x27,16,2);  // Устанавливаем какой дисплей
-float minimum=10000;
-float maximum=0;
-float average=0;
+int hum = dht.readHumidity(); // Считываем влажность
+int temp = dht.readTemperature();
+
 
 void setup(){
   Serial.begin(9600);
   lcd.init();                      // инициализируем дисплей                
-  lcd.backlight();  
+  lcd.backlight();
+  dht.begin();  
   pinMode(A1, INPUT);// Включаем подсветку дисплея
   pinMode(2, OUTPUT);
-  digitalWrite(2, HIGH);
+  pinMode(3, OUTPUT);
 }
 
-void loop(){  
-
-  lcd.setCursor(0, 0);  
-  float rzero = gasSensor.getPPM();
-  int minCO=400;
-  Serial.println(rzero);
-  lcd.print(rzero);
-  if(rzero > minCO){
+void loop(){    
+  float co2 = gasSensor.getPPM();
+  int minCo2=400;
+  Serial.println(co2);
+  lcd.setCursor(0, 0);
+  lcd.print(co2);
+  lcd.setCursor(0, 1);
+  hum = dht.readHumidity(); // Считываем влажность
+  temp = dht.readTemperature();
+  lcd.print(hum);
+  lcd.print(" ");
+  lcd.print(temp);
+  if(co2 > minCo2){
     digitalWrite(2, HIGH);
     Serial.println("true");
   }else{
@@ -36,20 +43,4 @@ void loop(){
       Serial.println("false");
       }
   delay(20000);
-}
-
-void getMin(float v){
-  if(v<minimum){
-    minimum=v;
-  }  
-}
-
-void getMax(float v){
-  if(v>maximum){
-    maximum=v;
-  }  
-}
-
-void getAverage(){
-  average=(minimum+maximum)/2;  
 }
