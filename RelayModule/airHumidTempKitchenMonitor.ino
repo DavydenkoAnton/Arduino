@@ -9,8 +9,8 @@
 DHT dht(DHTPIN, DHTTYPE);
 MQ135 gasSensor = MQ135(A1);
 LiquidCrystal_I2C lcd(0x27,16,2);  // Устанавливаем какой дисплей
-const int minCo2=400;
-const int maxCo2=600;
+const int minCo2=600;
+const int maxCo2=800;
 int hum = 0;
 int temp = 0;
 
