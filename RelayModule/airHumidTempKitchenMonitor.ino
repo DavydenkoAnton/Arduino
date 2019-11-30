@@ -29,12 +29,25 @@ void loop(){
   
   Serial.println(co2);
   lcd.setCursor(0, 0);
+  delay(10);
+  lcd.clear();
+  delay(10);
+  lcd.print("co2: ");
+  delay(10);
   lcd.print(co2);
+  delay(10);
   lcd.setCursor(0, 1);
-  hum = dht.readHumidity(); // Считываем влажность
+  delay(10);
+  hum = dht.readHumidity();
+  delay(10);
   temp = dht.readTemperature();
+  delay(10);
+  lcd.print("hum: ");
+  delay(10);
   lcd.print(hum);
-  lcd.print(" ");
+  delay(10);
+  lcd.print(" temp: ");
+  delay(10);
   lcd.print(temp);
   if(co2 > minCo2){
     digitalWrite(2, HIGH);
@@ -43,5 +56,5 @@ void loop(){
      digitalWrite(2, LOW);
       Serial.println("false");
       }
-  delay(20000);
+  delay(10000);
 }
