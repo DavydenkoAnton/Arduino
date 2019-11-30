@@ -9,7 +9,8 @@
 DHT dht(DHTPIN, DHTTYPE);
 MQ135 gasSensor = MQ135(A1);
 LiquidCrystal_I2C lcd(0x27,16,2);  // Устанавливаем какой дисплей
-const int minCo2=1000;
+const int minCo2=400;
+const int maxCo2=600;
 int hum = 0;
 int temp = 0;
 
@@ -49,12 +50,13 @@ void loop(){
   lcd.print(" temp: ");
   delay(10);
   lcd.print(temp);
-  if(co2 > minCo2){
+  
+  if(co2 > maxCo2){
     digitalWrite(2, HIGH);
-    Serial.println("true");
-  }else{
+  }
+  if(co2 < minCo2){
      digitalWrite(2, LOW);
-      Serial.println("false");
-      }
+  }
+  
   delay(10000);
 }
