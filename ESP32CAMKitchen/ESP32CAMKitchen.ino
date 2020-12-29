@@ -40,7 +40,7 @@ String FIREBASE_AUTH = "Sj4vGGLFRnMq63hYPS2kVCSAnTlk7dZ50NxwP4IH";
 const char* ssid = "Salva";
 const char* password = "!Panchenko!60";
 FirebaseData firebaseData;
-
+String command = "";
 int pictureNumber = 0;
 
 void setup() {
@@ -125,10 +125,34 @@ void setup() {
 
 
 void loop() {
-  delay(10000);
-  snapshot();
+  getCommand();
+  executeCommand();
 }
 
+void getCommand() {
+  if (Firebase.getString(firebaseData, "/panchenko/kitchen/command/cam1")) {
+    command = firebaseData.stringData();
+    if (command.length() > 0) {
+      Serial.println(command);
+    }
+  }
+}
+
+void executeCommand() {
+  if (command.equals("refresh")) {
+    snapshot();
+    eraseCommand();
+  }
+}
+
+void eraseCommand() {
+  String firebaseCommandPath = "/panchenko/kitchen/command/cam1";
+  if (Firebase.setString(firebaseData, firebaseCommandPath, "")) {
+    Serial.println("send to firebase");
+  } else {
+    Serial.println(firebaseData.errorReason());
+  }
+}
 
 void snapshot() {
   camera_fb_t * fb = NULL;
@@ -145,7 +169,7 @@ void snapshot() {
   char output[base64_enc_len(3)];
   String firebasePhotoPath = "/panchenko/kitchen/photoBase64/cam1/320x240/";
   int count = 1;
-  String firebasePhotoPathBuf="";
+  String firebasePhotoPathBuf = "";
   for (int i = 0; i < fb->len; i++) {
     base64_encode(output, (input++), 3);
     if (i % 3 == 0) {
@@ -158,7 +182,7 @@ void snapshot() {
       } else {
         Serial.println(firebaseData.errorReason());
       }
-      Serial.println(imageFile);
+      //Serial.println(imageFile);
       imageFile = "";
       count++;
     }
@@ -169,8 +193,8 @@ void snapshot() {
   } else {
     Serial.println(firebaseData.errorReason());
   }
-  Serial.println(imageFile);
-  
+  //Serial.println(imageFile);
+
 
   // initialize EEPROM with predefined size
   EEPROM.begin(EEPROM_SIZE);
