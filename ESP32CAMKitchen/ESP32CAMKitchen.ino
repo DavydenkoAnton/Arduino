@@ -1,25 +1,22 @@
 //https://github.com/fustyles/Arduino/blob/master/ESP32-CAM_Firebase/ESP32-CAM_Firebase.ino
 //https://codebeautify.org/base64-to-image-converter
 
-String FIREBASE_HOST = "panchenko-db04d.firebaseio.com";
-String FIREBASE_AUTH = "Sj4vGGLFRnMq63hYPS2kVCSAnTlk7dZ50NxwP4IH";
-const char* ssid = "Salva";
-const char* password = "!Panchenko!60";
-
-#include "FirebaseESP32.h"
-FirebaseData firebaseData;
-
-#include <WiFi.h>
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
-#include "Base64.h"
-
 #include "esp_camera.h"
+#include "Arduino.h"
+#include "Base64.h"
+#include "FirebaseESP32.h"
+#include "FS.h"                // SD Card ESP32
+#include "SD_MMC.h"            // SD Card ESP32
+#include "soc/soc.h"           // Disable brownour problems
+#include "soc/rtc_cntl_reg.h"  // Disable brownour problems
+#include "driver/rtc_io.h"
+#include <EEPROM.h>            // read and write from flash memory
+#include <WiFi.h>
 
-// WARNING!!! Make sure that you have either selected ESP32 Wrover Module,
-//            or another board which has PSRAM enabled
+// define the number of bytes you want to access
+#define EEPROM_SIZE 1
 
-//CAMERA_MODEL_AI_THINKER
+// Pin definition for CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -38,14 +35,20 @@ FirebaseData firebaseData;
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
+String FIREBASE_HOST = "panchenko-db04d.firebaseio.com";
+String FIREBASE_AUTH = "Sj4vGGLFRnMq63hYPS2kVCSAnTlk7dZ50NxwP4IH";
+const char* ssid = "Salva";
+const char* password = "!Panchenko!60";
+FirebaseData firebaseData;
+
+int pictureNumber = 0;
+
 void setup() {
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
   Serial.begin(115200);
-  Serial.setDebugOutput(true);
-  Serial.println();
-  Serial.println("ssid: " + (String)ssid);
-  Serial.println("password: " + (String)password);
+  //Serial.setDebugOutput(true);
+  //Serial.println();
 
   WiFi.begin(ssid, password);
 
@@ -56,15 +59,8 @@ void setup() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    //    char* apssid = "ESP32-CAM";
-    //    char* appassword = "12345678";         //AP password require at least 8 characters.
-    Serial.println("");
-    Serial.print("Camera Ready! Use 'http://");
-    Serial.print(WiFi.localIP());
-    Serial.println("' to connect");
-    //    WiFi.softAP((WiFi.localIP().toString()+"_"+(String)apssid).c_str(), appassword);
-  }
-  else {
+    Serial.println("Connected to wifi");
+  } else {
     Serial.println("Connection failed");
     return;
   }
@@ -91,89 +87,113 @@ void setup() {
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
-  //init with high specs to pre-allocate larger buffers
   if (psramFound()) {
-    config.frame_size = FRAMESIZE_QVGA;
-    config.jpeg_quality = 50;  //0-63 lower number means higher quality
+    config.frame_size = FRAMESIZE_QVGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
+    config.jpeg_quality = 10;
     config.fb_count = 2;
   } else {
     config.frame_size = FRAMESIZE_SVGA;
-    config.jpeg_quality = 12;  //0-63 lower number means higher quality
+    config.jpeg_quality = 12;
     config.fb_count = 1;
   }
 
-  // camera init
+  // Init Camera
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
-    delay(1000);
-    ESP.restart();
+    return;
   }
 
-  //drop down frame size for higher initial frame rate
-  sensor_t * s = esp_camera_sensor_get();
-  //s->set_framesize(s, FRAMESIZE_QQVGA);  // VGA|CIF|QVGA|HQVGA|QQVGA   ( UXGA? SXGA? XGA? SVGA? )
-  s->set_brightness(s, 1);     // -2 to 2
-  s->set_contrast(s, 0);       // -2 to 2
-  s->set_saturation(s, 0);     // -2 to 2
-  s->set_special_effect(s, 0); // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
-  s->set_whitebal(s, 1);       // 0 = disable , 1 = enable
-  s->set_awb_gain(s, 1);       // 0 = disable , 1 = enable
-  s->set_wb_mode(s, 0);        // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
-  s->set_exposure_ctrl(s, 1);  // 0 = disable , 1 = enable
-  s->set_aec2(s, 0);           // 0 = disable , 1 = enable
-  s->set_ae_level(s, 0);       // -2 to 2
-  s->set_aec_value(s, 300);    // 0 to 1200
-  s->set_gain_ctrl(s, 1);      // 0 = disable , 1 = enable
-  s->set_agc_gain(s, 0);       // 0 to 30
-  s->set_gainceiling(s, (gainceiling_t)0);  // 0 to 6
-  s->set_bpc(s, 0);            // 0 = disable , 1 = enable
-  s->set_wpc(s, 1);            // 0 = disable , 1 = enable
-  s->set_raw_gma(s, 1);        // 0 = disable , 1 = enable
-  s->set_lenc(s, 1);           // 0 = disable , 1 = enable
-  s->set_hmirror(s, 0);        // 0 = disable , 1 = enable
-  s->set_vflip(s, 0);          // 0 = disable , 1 = enable
-  s->set_dcw(s, 1);            // 0 = disable , 1 = enable
-  s->set_colorbar(s, 0);       // 0 = disable , 1 = enable
+  //Serial.println("Starting SD Card");
+  if (!SD_MMC.begin()) {
+    Serial.println("SD Card Mount Failed");
+    return;
+  }
+
+  uint8_t cardType = SD_MMC.cardType();
+  if (cardType == CARD_NONE) {
+    Serial.println("No SD Card attached");
+    return;
+  }
 
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   Firebase.reconnectWiFi(true);
   Firebase.setMaxRetry(firebaseData, 3);
   Firebase.setMaxErrorQueue(firebaseData, 30);
   Firebase.enableClassicRequest(firebaseData, true);
-
-
-  String image = Photo2Base64();
-  Serial.print("image length ");
-  Serial.println(image.length());
-  String jsonData = "{\"base64\":\"" + image + "\"}";
-  String photoPath = "/panchenko/kitchen/photo";
-
-  if (Firebase.setJSON(firebaseData, photoPath, jsonData)) {
-    Serial.println(firebaseData.dataPath());
-    Serial.println(firebaseData.pushName());
-    Serial.println(firebaseData.dataPath() + "/" + firebaseData.pushName());
-  } else {
-    Serial.println(firebaseData.errorReason());
-  }
 }
+
 
 void loop() {
-  //delay(1000);
-  sendPhotoFBase();
+  delay(10000);
+  snapshot();
 }
 
-void sendPhotoFBase() {
-  String imageBase64 = Photo2Base64();
-  Serial.print("image length ");
-  Serial.println(imageBase64.length());
-  String photoPath = "/panchenko/kitchen/photo/base64";
 
-  if (Firebase.setString(firebaseData, photoPath, imageBase64)) {
-    
+void snapshot() {
+  camera_fb_t * fb = NULL;
+
+  // Take Picture with Camera
+  fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("Camera capture failed");
+    return;
+  }
+
+  String imageFile = "";
+  char *input = (char *)fb->buf;
+  char output[base64_enc_len(3)];
+  String firebasePhotoPath = "/panchenko/kitchen/photoBase64/cam1/320x240/";
+  int count = 1;
+  String firebasePhotoPathBuf="";
+  for (int i = 0; i < fb->len; i++) {
+    base64_encode(output, (input++), 3);
+    if (i % 3 == 0) {
+      imageFile += urlencode(String(output));
+    }
+    if (imageFile.length() > 5000) {
+      firebasePhotoPathBuf = firebasePhotoPath + (String)count;
+      if (Firebase.setString(firebaseData, firebasePhotoPathBuf, imageFile)) {
+        Serial.println("send to firebase");
+      } else {
+        Serial.println(firebaseData.errorReason());
+      }
+      Serial.println(imageFile);
+      imageFile = "";
+      count++;
+    }
+  }
+  firebasePhotoPathBuf = firebasePhotoPath + (String)count;
+  if (Firebase.setString(firebaseData, firebasePhotoPathBuf, imageFile)) {
+    Serial.println("send to firebase");
   } else {
     Serial.println(firebaseData.errorReason());
   }
+  Serial.println(imageFile);
+  
+
+  // initialize EEPROM with predefined size
+  EEPROM.begin(EEPROM_SIZE);
+  pictureNumber = EEPROM.read(0) + 1;
+
+  // Path where new picture will be saved in SD Card
+  String path = "/picture" + String(pictureNumber) + ".jpg";
+
+  fs::FS &fs = SD_MMC;
+  Serial.printf("Picture file name: %s\n", path.c_str());
+
+  File file = fs.open(path.c_str(), FILE_WRITE);
+  if (!file) {
+    Serial.println("Failed to open file in writing mode");
+  }
+  else {
+    file.write(fb->buf, fb->len); // payload (image), payload length
+    Serial.printf("Saved file to path: %s\n", path.c_str());
+    EEPROM.write(0, pictureNumber);
+    EEPROM.commit();
+  }
+  file.close();
+  esp_camera_fb_return(fb);
 }
 
 String Photo2Base64() {
@@ -183,7 +203,6 @@ String Photo2Base64() {
     Serial.println("Camera capture failed");
     return "";
   }
-
   String imageFile = "data:image/jpeg;base64,";
   char *input = (char *)fb->buf;
   char output[base64_enc_len(3)];
@@ -191,9 +210,7 @@ String Photo2Base64() {
     base64_encode(output, (input++), 3);
     if (i % 3 == 0) imageFile += urlencode(String(output));
   }
-
   esp_camera_fb_return(fb);
-
   return imageFile;
 }
 
