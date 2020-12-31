@@ -1,3 +1,4 @@
+// SD operations https://esp32.com/viewtopic.php?t=14371
 //https://github.com/fustyles/Arduino/blob/master/ESP32-CAM_Firebase/ESP32-CAM_Firebase.ino
 //https://codebeautify.org/base64-to-image-converter
 
@@ -10,13 +11,13 @@
 #include "soc/soc.h"           // Disable brownour problems
 #include "soc/rtc_cntl_reg.h"  // Disable brownour problems
 #include "driver/rtc_io.h"
-#include <EEPROM.h>            // read and write from flash memory
+//#include <EEPROM.h>            // read and write from flash memory
 #include <WiFi.h>
 #include <NTPClient.h>         // time lib
 #include <WiFiUdp.h>           // time lib
 
 // define the number of bytes you want to access
-#define EEPROM_SIZE 1
+//#define EEPROM_SIZE 1
 
 // Pin definition for CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -43,7 +44,7 @@ const char* ssid = "Salva";
 const char* password = "!Panchenko!60";
 FirebaseData firebaseData;
 String command = "";
-int pictureNumber = 0;
+//int pictureNumber = 0;
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
@@ -103,12 +104,16 @@ void setup() {
     config.fb_count = 1;
   }
 
+
+
   // Init Camera
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
+
+
 
   //Serial.println("Starting SD Card");
   if (!SD_MMC.begin()) {
@@ -218,6 +223,10 @@ void snapshot() {
 
 void saveSnapshot() {
   Serial.println("saveSnapshot()");
+  
+  sensor_t * cam = esp_camera_sensor_get();
+  cam->set_framesize(cam, FRAMESIZE_UXGA);
+
   camera_fb_t * fb = NULL;
 
   // Take Picture with Camera
@@ -227,8 +236,8 @@ void saveSnapshot() {
     return;
   }
   // initialize EEPROM with predefined size
-  EEPROM.begin(EEPROM_SIZE);
-  pictureNumber = EEPROM.read(0) + 1;
+  //EEPROM.begin(EEPROM_SIZE);
+  //pictureNumber = EEPROM.read(0) + 1;
 
 
 
@@ -236,7 +245,7 @@ void saveSnapshot() {
   String filePath = "/" + getTime() + ".jpg";
 
   createDir(SD_MMC, dirPath.c_str());
-  
+
   // Path where new picture will be saved in SD Card
   String path = dirPath + filePath;
 
@@ -246,16 +255,17 @@ void saveSnapshot() {
   File file = fs.open(path.c_str(), FILE_WRITE);
   if (!file) {
     Serial.println("Failed to open file in writing mode");
-  }
-  else {
+  }  else {
     file.write(fb->buf, fb->len); // payload (image), payload length
     Serial.printf("Saved file to path: %s\n", path.c_str());
-    EEPROM.write(0, pictureNumber);
-    EEPROM.commit();
+    //EEPROM.write(0, pictureNumber);
+    //EEPROM.commit();
   }
   file.close();
+  cam->set_framesize(cam, FRAMESIZE_QVGA);
   esp_camera_fb_return(fb);
 }
+
 
 String Photo2Base64() {
   camera_fb_t * fb = NULL;
@@ -274,6 +284,7 @@ String Photo2Base64() {
   esp_camera_fb_return(fb);
   return imageFile;
 }
+
 
 //https://github.com/zenmanenergy/ESP8266-Arduino-Examples/
 String urlencode(String str)
@@ -343,7 +354,7 @@ void createDir(fs::FS &fs, const  char * path) {
 }
 
 //init with high specs to pre-allocate larger buffers
-//    FRAMESIZE_96X96,    // 96x96
+//    FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
 //    FRAMESIZE_QQVGA,    // 160x120
 //    FRAMESIZE_QCIF,     // 176x144
 //    FRAMESIZE_HQVGA,    // 240x176
@@ -357,14 +368,3 @@ void createDir(fs::FS &fs, const  char * path) {
 //    FRAMESIZE_HD,       // 1280x720
 //    FRAMESIZE_SXGA,     // 1280x1024
 //    FRAMESIZE_UXGA,     // 1600x1200
-//    // 3MP Sensors
-//    FRAMESIZE_FHD,      // 1920x1080
-//    FRAMESIZE_P_HD,     // 720x1280
-//    FRAMESIZE_P_3MP,    // 864x1536
-//    FRAMESIZE_QXGA,     // 2048x1536
-//    // 5MP Sensors
-//    FRAMESIZE_QHD,      // 2560x1440
-//    FRAMESIZE_WQXGA,    // 2560x1600
-//    FRAMESIZE_P_FHD,    // 1080x1920
-//    FRAMESIZE_QSXGA,    // 2560x1920
-//    FRAMESIZE_INVALID
