@@ -12,6 +12,8 @@
 #include "driver/rtc_io.h"
 #include <EEPROM.h>            // read and write from flash memory
 #include <WiFi.h>
+#include <NTPClient.h>         // time lib
+#include <WiFiUdp.h>           // time lib
 
 // define the number of bytes you want to access
 #define EEPROM_SIZE 1
@@ -42,6 +44,10 @@ const char* password = "!Panchenko!60";
 FirebaseData firebaseData;
 String command = "";
 int pictureNumber = 0;
+
+// Define NTP Client to get time
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP);
 
 void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
@@ -121,6 +127,10 @@ void setup() {
   Firebase.setMaxRetry(firebaseData, 3);
   Firebase.setMaxErrorQueue(firebaseData, 30);
   Firebase.enableClassicRequest(firebaseData, true);
+
+  // Initialize a NTPClient to get time
+  timeClient.begin();
+  timeClient.setTimeOffset(10800);// GMT +1 = 3600
 }
 
 
@@ -143,6 +153,10 @@ void executeCommand() {
     snapshot();
     eraseCommand();
   }
+  if (command.equals("save")) {
+    saveSnapshot();
+    eraseCommand();
+  }
 }
 
 void eraseCommand() {
@@ -155,6 +169,7 @@ void eraseCommand() {
 }
 
 void snapshot() {
+  Serial.println("snapshot()");
   camera_fb_t * fb = NULL;
 
   // Take Picture with Camera
@@ -170,6 +185,8 @@ void snapshot() {
   String firebasePhotoPath = "/panchenko/kitchen/photoBase64/cam1/320x240/";
   int count = 1;
   String firebasePhotoPathBuf = "";
+  String time = getTime();
+  String date = getDate();
   for (int i = 0; i < fb->len; i++) {
     base64_encode(output, (input++), 3);
     if (i % 3 == 0) {
@@ -177,31 +194,51 @@ void snapshot() {
     }
     if (imageFile.length() > 5000) {
       firebasePhotoPathBuf = firebasePhotoPath + (String)count;
-      if (Firebase.setString(firebaseData, firebasePhotoPathBuf, imageFile)) {
-        Serial.println("send to firebase");
-      } else {
+      if (!Firebase.setString(firebaseData, firebasePhotoPathBuf, imageFile)) {
         Serial.println(firebaseData.errorReason());
       }
-      //Serial.println(imageFile);
       imageFile = "";
       count++;
     }
   }
   firebasePhotoPathBuf = firebasePhotoPath + (String)count;
-  if (Firebase.setString(firebaseData, firebasePhotoPathBuf, imageFile)) {
-    Serial.println("send to firebase");
-  } else {
+  if (!Firebase.setString(firebaseData, firebasePhotoPathBuf, imageFile)) {
     Serial.println(firebaseData.errorReason());
   }
-  //Serial.println(imageFile);
+  firebasePhotoPathBuf = firebasePhotoPath + "date";
+  if (!Firebase.setString(firebaseData, firebasePhotoPathBuf, date)) {
+    Serial.println(firebaseData.errorReason());
+  }
+  firebasePhotoPathBuf = firebasePhotoPath + "time";
+  if (!Firebase.setString(firebaseData, firebasePhotoPathBuf, time)) {
+    Serial.println(firebaseData.errorReason());
+  }
+  esp_camera_fb_return(fb);
+}
 
+void saveSnapshot() {
+  Serial.println("saveSnapshot()");
+  camera_fb_t * fb = NULL;
 
+  // Take Picture with Camera
+  fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("Camera capture failed");
+    return;
+  }
   // initialize EEPROM with predefined size
   EEPROM.begin(EEPROM_SIZE);
   pictureNumber = EEPROM.read(0) + 1;
 
+
+
+  String dirPath = "/" + getDate();
+  String filePath = "/" + getTime() + ".jpg";
+
+  createDir(SD_MMC, dirPath.c_str());
+  
   // Path where new picture will be saved in SD Card
-  String path = "/picture" + String(pictureNumber) + ".jpg";
+  String path = dirPath + filePath;
 
   fs::FS &fs = SD_MMC;
   Serial.printf("Picture file name: %s\n", path.c_str());
@@ -271,6 +308,38 @@ String urlencode(String str)
     yield();
   }
   return encodedString;
+}
+
+String getDate() {
+  while (!timeClient.update()) {
+    timeClient.forceUpdate();
+  }
+  String formattedDate = timeClient.getFormattedDate();
+  // Extract date
+  int splitT = formattedDate.indexOf("T");
+  String date = formattedDate.substring(0, splitT);
+  return date;
+}
+
+String getTime() {
+  while (!timeClient.update()) {
+    timeClient.forceUpdate();
+  }
+  String formattedDate = timeClient.getFormattedDate();
+  // Extract time
+  int splitT = formattedDate.indexOf("T");
+  String time = formattedDate.substring(splitT + 1, formattedDate.length() - 1);
+  time.replace(":", "-");
+  return time;
+}
+
+void createDir(fs::FS &fs, const  char * path) {
+  Serial.printf("Creating Dir: %s\n", path);
+  if (fs.mkdir(path)) {
+    Serial.println("Dir created");
+  } else {
+    Serial.println("mkdir failed");
+  }
 }
 
 //init with high specs to pre-allocate larger buffers
