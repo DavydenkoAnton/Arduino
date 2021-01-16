@@ -1,22 +1,29 @@
 #include <ESP8266WiFi.h>        // wifi
 #include <FirebaseESP8266.h>    // firebase
 #include <Adafruit_NeoPixel.h>  // WS212B
+#include <Timer.h>
 
 const char* WIFI_SSID = "Salva";
 const char* WIFI_PASSWORD = "!Panchenko!60";
 #define FIREBASE_HOST "panchenko-db04d.firebaseio.com"
 #define FIREBASE_AUTH "Sj4vGGLFRnMq63hYPS2kVCSAnTlk7dZ50NxwP4IH"
-#define NUM_LEDS    5           // Number of LEDs connected.
+#define NUM_LEDS    16
 int pirPin = D1;
 int ledPin = D4;
-String lightMode = "static";
-String color = "";
-int brightness = 100;
+String ledStripMode = "static";
+int brightness = 150;
+int red = 0;
+int green = 0;
+int blue = 0;
+bool MOVEMENT=false;
 bool connection = false;
 FirebaseData firebaseData;
+Timer modeRainbowTimer;
+Timer movementTimer;
 
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, ledPin, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, ledPin, NEO_GRB + NEO_KHZ800);
 
+bool m = false;
 void setup() {
   Serial.begin(115200); //enable Serial Monitor
   WiFi.mode(WIFI_STA);
@@ -38,50 +45,148 @@ void setup() {
   pinMode(pirPin, INPUT);   // pir pin
   pinMode(ledPin, OUTPUT);  // led pin
 
-  pixels.begin();
+  strip.begin();
+  for (int ledNum = 0; ledNum < NUM_LEDS; ledNum++) {
+    strip.setPixelColor(ledNum, 0, 0, 0);
+  }
+  strip.show();
+
+  movementTimer.interval = 30000;
+  modeRainbowTimer.interval = 50;
 }
 
 void loop() {
-  getLightMode();
-  getBrightness();
+  movementListener();
+  if (MOVEMENT) {
+    runLedStrip();
+  } else {
+    offLedStrip();
+  }
+}
 
-  if (lightMode.equals("static")) {
-    for (int i = 0; i < NUM_LEDS; i++) {
-      pixels.setPixelColor(i, pixels.Color(0, 255, 0));
-      pixels.show();
-      delay(1000);
+void runLedStrip() {
+  modeValueListener();
+  runLedStripMode();
+}
+
+void runLedStripMode() {
+  if (ledStripMode.equals("static")) {
+    staticMode();
+  } else  if (ledStripMode.equals("rainbow")) {
+    rainbowMode();
+  } else  if (ledStripMode.equals("b4b")) {
+    b4bMode();
+  }
+}
+
+void offLedStrip() {
+  for ( int ledNum = 0; ledNum < NUM_LEDS; ledNum++) {
+    strip.setPixelColor(ledNum, strip.Color(0, 0 , 0));
+  }
+  strip.show();
+}
+
+void staticMode() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    strip.setPixelColor(i, strip.Color(red, green, blue));
+  }
+  strip.show();
+  colorValueListener();
+  modeValueListener();
+}
+
+void rainbowMode() {
+  for ( int i = 0; i < 255; i++) {
+    for ( int ledNum = 0; ledNum < NUM_LEDS; ledNum++) {
+      strip.setPixelColor(ledNum, strip.Color(red, i , blue));
     }
-  } else if (lightMode.equals("auto")) {
-    for (int i = 0; i < NUM_LEDS; i++) {
-      pixels.setPixelColor(i, pixels.Color(255, 0, 0));
-      pixels.show();
-      delay(1000);
+    strip.show();
+    delay(30);
+  }
+  for ( int i = 255; i > 0; i--) {
+    for ( int ledNum = 0; ledNum < NUM_LEDS; ledNum++) {
+      strip.setPixelColor(ledNum, strip.Color(red, i , blue));
     }
+    delay(30);
+    strip.show();
   }
-
-  runLed();
-  delay(3000);
+  colorValueListener();
+  modeValueListener();
+  /*
+    if (millis() - modeRainbowTimer.prev >= modeRainbowTimer.interval) {
+      modeRainbowTimer.prev = millis();   // "сбросить" таймер
+      strip.setPixelColor(pixNum, strip.Color(, 0, 0));
+      strip.show();
+    }
+  */
 }
 
-void runLed() {
-
+void b4bMode() {
+  brightnessValueListener();
+  modeValueListener();
+  for (int i = 0; i < NUM_LEDS; i++) {
+    strip.setPixelColor(i, strip.Color(brightness, brightness, brightness));
+  }
+  for (int i = NUM_LEDS / 3; i < (NUM_LEDS / 3) * 2; i++) {
+    strip.setPixelColor(i, strip.Color(brightness, 0, 0));
+  }
+  strip.show();
 }
 
-void getLightMode() {
-  if (Firebase.getString(firebaseData, "panchenko/smallRoom/light/nightLight_1/lightMode")) {
-    lightMode = firebaseData.stringData();
+void modeValueListener() {
+  if (Firebase.getString(firebaseData, "panchenko/smallRoom/light/nightLight_1/ledStripMode")) {
+    ledStripMode = firebaseData.stringData();
   }
 }
 
-void getColor() {
-  if (Firebase.getString(firebaseData, "panchenko/smallRoom/light/nightLight_1/color")) {
-    color = firebaseData.stringData();
+void colorValueListener() {
+  getRedColorFireBase();
+  getGreenColorFireBase();
+  getBlueColorFireBase();
+}
+
+void getRedColorFireBase() {
+  if (Firebase.getInt(firebaseData, "panchenko/smallRoom/light/nightLight_1/color/red")) {
+    red = firebaseData.intData();
   }
 }
 
-void getBrightness() {
-  if (Firebase.getInt(firebaseData, "panchenko/smallRoom/light/nightLight_1/brightness")) {
+void  getGreenColorFireBase() {
+  if ( Firebase.getInt(firebaseData, "panchenko/smallRoom/light/nightLight_1/color/green")) {
+    green  = firebaseData.intData();
+  }
+}
+
+void  getBlueColorFireBase() {
+  if ( Firebase.getInt(firebaseData, "panchenko/smallRoom/light/nightLight_1/color/blue")) {
+    blue = firebaseData.intData();
+  }
+}
+
+void brightnessValueListener() {
+  if (Firebase.getInt(firebaseData, "panchenko/smallRoom/light/nightLight_1/color/alpha")) {
     brightness = firebaseData.intData();
   }
 }
 
+void movementListener() {
+  if (isMovement(pirPin)) {
+    Serial.println("move");
+    MOVEMENT = true;
+    movementTimer.prev = millis();
+  }
+  if (millis() - movementTimer.prev >= movementTimer.interval) {
+    Serial.println("not move");
+    MOVEMENT = false;
+  }
+}
+
+bool isMovement(int pin) {
+  bool m;
+  if (digitalRead(pin) == HIGH) {
+    m = true;
+  } else if (digitalRead(pin) == LOW) {
+    m = false;
+  }
+  return m;
+}
