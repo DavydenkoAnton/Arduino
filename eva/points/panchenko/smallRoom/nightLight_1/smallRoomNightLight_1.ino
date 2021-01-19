@@ -10,13 +10,15 @@ const char* WIFI_PASSWORD = "!Panchenko!60";
 #define NUM_LEDS    16
 int pirPin = D1;
 int ledPin = D4;
-String ledStripMode = "static";
 int brightness = 150;
 int red = 0;
 int green = 150;
 int blue = 0;
-bool MOVEMENT = false;
+String ledStripMode = "color";
+bool movement = false;
+bool autoMode = true;
 bool connection = false;
+bool ledStripStatus = true;
 FirebaseData firebaseData;
 Timer modeRainbowTimer;
 Timer movementTimer;
@@ -24,6 +26,17 @@ Timer colorCheckTimer;
 Timer modeCheckTimer;
 Timer alphaCheckTimer;
 Timer rainbowTimer;
+Timer randomTimer;
+Timer statusTimer;
+Timer autoModeTimer;
+
+struct RGB {
+  int r;
+  int g;
+  int b;
+};
+
+RGB randomRGB = {0, 0, 0,};
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, ledPin, NEO_GRB + NEO_KHZ800);
 
@@ -46,7 +59,6 @@ void setup() {
     delay(100);
   }
   if (!connection) {
-    delay(5000);
     ESP.restart();
   }
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
@@ -64,7 +76,10 @@ void setup() {
   modeCheckTimer.interval = 10000;
   colorCheckTimer.interval = 10000;
   alphaCheckTimer.interval = 10000;
+  statusTimer.interval = 10000;
   rainbowTimer.interval = 100;
+  randomTimer.interval = 20000;
+  autoModeTimer.interval = 10000;
 
   //ledSignal(3, 200);
 }
@@ -74,34 +89,53 @@ void setup() {
 //////////////////////////////////
 
 void loop() {
-  movementListener();
   runLedStrip();
 }
 
-//////////////////////////////////
-/////// FUNCTIONS  ///////////////
-//////////////////////////////////
 void runLedStrip() {
-  if (MOVEMENT) {
-    if (ledStripMode.equals("color")) {
-      colorMode();
-    } else  if (ledStripMode.equals("rainbow")) {
-      rainbowMode();
-    } else  if (ledStripMode.equals("belarus")) {
-      belarusMode();
-    } else  if (ledStripMode.equals("auto")) {
-      randomMode();
-    } else  if (ledStripMode.equals("off")) {
-      offMode();
+  statusListener();
+  if (ledStripStatus) {
+    autoModeListener();
+    if (autoMode) {
+      movementListener();
+      if (movement) {
+        modeListener();
+        if (ledStripMode.equals("color")) {
+          colorListener();
+          colorMode();
+        } else  if (ledStripMode.equals("rainbow")) {
+          rainbowMode();
+        } else  if (ledStripMode.equals("belarus")) {
+          brightnessListener();
+          belarusMode();
+        } else  if (ledStripMode.equals("random")) {
+          brightnessListener();
+          randomMode();
+        }
+      } else {
+        clearLedStrip();
+      }
+    } else { // AUTO_MODE -> off
+      if (ledStripMode.equals("color")) {
+        colorMode();
+      } else  if (ledStripMode.equals("rainbow")) {
+        rainbowMode();
+      } else  if (ledStripMode.equals("belarus")) {
+        belarusMode();
+      } else  if (ledStripMode.equals("random")) {
+        randomMode();
+      }
     }
-  } else {
+  } else { // LED_STATUS -> off
     offMode();
   }
 }
 
+//////////////////////////////////
+/////// MODE  ////////////////////
+//////////////////////////////////
+
 void colorMode() {
-  colorValueListener();
-  modeValueListener();
   //ledSignal(2, 300);
   for (int i = 0; i < NUM_LEDS; i++) {
     strip.setPixelColor(i, strip.Color(red, green, blue));
@@ -118,8 +152,6 @@ void rainbowMode() {
     strip.show();
     delay(rainbowTimer.interval);
   }
-  colorValueListener();
-  modeValueListener();
 }
 
 // Input a value 0 to 255 to get a color value.
@@ -137,8 +169,6 @@ uint32_t Wheel(byte WheelPos) {
 }
 
 void belarusMode() {
-  brightnessValueListener();
-  modeValueListener();
   //ledSignal(3, 300);
   for (int i = 0; i < NUM_LEDS; i++) {
     strip.setPixelColor(i, strip.Color(brightness, brightness, brightness));
@@ -149,11 +179,28 @@ void belarusMode() {
   strip.show();
 }
 
-void randomMode(){
-  
-  }
+void randomMode() {
+  if (millis() - randomTimer.prev >= randomTimer.interval) {
+    randomTimer.prev = millis();
+    // todo плавный преход
+    int x=randomRGB.r;
+    for (int i = 0; i < NUM_LEDS; i++) {
+      strip.setPixelColor(i, strip.Color(random(0, brightness), random(0, brightness), random(0, brightness)));
+      strip.show();
+    }
 
-void modeValueListener() {
+    do {
+      randomTimer.prev += randomTimer.interval;
+      if (randomTimer.prev < randomTimer.interval) break;  // переполнение uint32_t
+    } while (randomTimer.prev < millis() - randomTimer.interval); // защита от пропуска шага
+  }
+}
+
+//////////////////////////////////
+/////// LISTENER  ////////////////
+//////////////////////////////////
+
+void modeListener() {
   if (millis() - modeCheckTimer.prev >= modeCheckTimer.interval) {
     modeCheckTimer.prev = millis();
     if (Firebase.getString(firebaseData, "panchenko/smallRoom/light/nightLight_1/ledStripMode")) {
@@ -166,7 +213,33 @@ void modeValueListener() {
   }
 }
 
-void colorValueListener() {
+void statusListener() {
+  if (millis() - statusTimer.prev >= statusTimer.interval) {
+    statusTimer.prev = millis();
+    if (Firebase.getBool(firebaseData, "panchenko/smallRoom/light/nightLight_1/ledStripStatus")) {
+      ledStripStatus = firebaseData.boolData();
+    }
+    do {
+      statusTimer.prev += statusTimer.interval;
+      if (statusTimer.prev < statusTimer.interval) break;  // переполнение uint32_t
+    } while (statusTimer.prev < millis() - statusTimer.interval); // защита от пропуска шага
+  }
+}
+
+void autoModeListener() {
+  if (millis() - autoModeTimer.prev >= autoModeTimer.interval) {
+    autoModeTimer.prev = millis();
+    if (Firebase.getBool(firebaseData, "panchenko/smallRoom/light/nightLight_1/ledStripAutoMode")) {
+      autoMode = firebaseData.boolData();
+    }
+    do {
+      autoModeTimer.prev += autoModeTimer.interval;
+      if (autoModeTimer.prev < autoModeTimer.interval) break;  // переполнение uint32_t
+    } while (autoModeTimer.prev < millis() - autoModeTimer.interval); // защита от пропуска шага
+  }
+}
+
+void colorListener() {
   if (millis() - colorCheckTimer.prev >= colorCheckTimer.interval) {
     colorCheckTimer.prev = millis();
     getRedColorFireBase();
@@ -197,7 +270,7 @@ void  getBlueColorFireBase() {
   }
 }
 
-void brightnessValueListener() {
+void brightnessListener() {
   if (millis() - alphaCheckTimer.prev >= alphaCheckTimer.interval) {
     alphaCheckTimer.prev = millis();
     if (Firebase.getInt(firebaseData, "panchenko/smallRoom/light/nightLight_1/color/alpha")) {
@@ -212,13 +285,13 @@ void brightnessValueListener() {
 
 void movementListener() {
   if (isMovement(pirPin)) {
-    Serial.println("move");
-    MOVEMENT = true;
+    //Serial.println("move");
+    movement = true;
     movementTimer.prev = millis();
   } else {
     if (millis() - movementTimer.prev >= movementTimer.interval) {
-      Serial.println("not move");
-      MOVEMENT = false;
+      //Serial.println("not move");
+      movement = false;
       do {
         movementTimer.prev += movementTimer.interval;
         if (movementTimer.prev < movementTimer.interval) break;  // переполнение uint32_t
@@ -237,7 +310,14 @@ void offMode() {
   }
   strip.show();
   //digitalWrite(BUILTIN_LED, HIGH); // led off
-  modeValueListener();
+}
+
+void clearLedStrip() {
+  for (int ledNum = 0; ledNum < NUM_LEDS; ledNum++) {
+    strip.setPixelColor(ledNum, 0, 0, 0);
+  }
+  strip.show();
+  //digitalWrite(BUILTIN_LED, HIGH); // led off
 }
 
 void ledSignal(int count, int milliseconds) {
