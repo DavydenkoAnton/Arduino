@@ -12,7 +12,7 @@ int pirPin = D1;
 int ledPin = D4;
 int brightness = 150;
 int red = 0;
-int green = 150;
+int green = 0;
 int blue = 0;
 String ledStripMode = "color";
 bool movement = false;
@@ -99,38 +99,33 @@ void runLedStrip() {
     if (autoMode) {
       movementListener();
       if (movement) {
-        modeListener();
-        if (ledStripMode.equals("color")) {
-          colorListener();
-          colorMode();
-        } else  if (ledStripMode.equals("rainbow")) {
-          rainbowMode();
-        } else  if (ledStripMode.equals("belarus")) {
-          brightnessListener();
-          belarusMode();
-        } else  if (ledStripMode.equals("random")) {
-          brightnessListener();
-          randomMode();
-        }
+        runMode();
       } else {
         clearLedStrip();
       }
     } else { // AUTO_MODE -> off
-      if (ledStripMode.equals("color")) {
-        colorMode();
-      } else  if (ledStripMode.equals("rainbow")) {
-        rainbowMode();
-      } else  if (ledStripMode.equals("belarus")) {
-        belarusMode();
-      } else  if (ledStripMode.equals("random")) {
-        randomMode();
-      }
+      runMode();
     }
   } else { // LED_STATUS -> off
     offMode();
   }
 }
 
+void runMode() {
+  modeListener();
+  if (ledStripMode.equals("color")) {
+    colorListener();
+    colorMode();
+  } else  if (ledStripMode.equals("rainbow")) {
+    rainbowMode();
+  } else  if (ledStripMode.equals("belarus")) {
+    brightnessListener();
+    belarusMode();
+  } else  if (ledStripMode.equals("random")) {
+    brightnessListener();
+    randomMode();
+  }
+}
 //////////////////////////////////
 /////// MODE  ////////////////////
 //////////////////////////////////
@@ -183,12 +178,11 @@ void randomMode() {
   if (millis() - randomTimer.prev >= randomTimer.interval) {
     randomTimer.prev = millis();
     // todo плавный преход
-    int x=randomRGB.r;
+    int x = randomRGB.r;
     for (int i = 0; i < NUM_LEDS; i++) {
       strip.setPixelColor(i, strip.Color(random(0, brightness), random(0, brightness), random(0, brightness)));
-      strip.show();
     }
-
+    strip.show();
     do {
       randomTimer.prev += randomTimer.interval;
       if (randomTimer.prev < randomTimer.interval) break;  // переполнение uint32_t
