@@ -4,12 +4,12 @@
 NRF24L01 | ARDUINO UNO
 -------- | -----------
 GND  | GND
-VCC  | 3V
-CE   | D4
-CSN  | D2
-SCK  | D5
-MOSI | D7
-MISO | D6
+VCC  | 
+CE   | 
+CSN  | 
+SCK  | 
+MOSI | 
+MISO | 
 IRQ  | -
 
 
