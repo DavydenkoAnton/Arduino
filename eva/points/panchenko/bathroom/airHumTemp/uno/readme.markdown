@@ -1,5 +1,4 @@
-# This is an <h1> tag
-## This is an <h2> tag
+## pinouts nrf24l01 <h2>
 ![](https://github.com/DavydenkoAnton/Arduino/blob/master/eva/points/panchenko/bathroom/airHumTemp/uno/images/Pinout-of-nRF24L01.png)<br>
 
 #Pinouts NRF-UNO
