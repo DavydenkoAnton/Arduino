@@ -1,5 +1,5 @@
 **pinouts nrf24l01**<br>
-<img src="https://github.com/DavydenkoAnton/Arduino/blob/master/eva/points/panchenko/bathroom/airHumTemp/uno/images/Pinout-of-nRF24L01.png"  width="517" height="168">
+<img src="https://github.com/DavydenkoAnton/Arduino/blob/master/eva/points/panchenko/bathroom/airHumTemp/uno/images/Pinout-of-nRF24L01.png"  width="517" height="168"><br>
 NRF24L01 | ARDUINO UNO
 -------- | -----------
     GND  | GND
