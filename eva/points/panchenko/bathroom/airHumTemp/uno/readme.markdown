@@ -1,4 +1,4 @@
-#Pinouts NRF-UNO<h1>xxx<br>
+<h1>Pinouts NRF-UNO
 ![](https://github.com/DavydenkoAnton/Arduino/blob/master/eva/points/panchenko/bathroom/airHumTemp/uno/images/Pinout-of-nRF24L01.png)<br>
 
 #Pinouts NRF-UNO
