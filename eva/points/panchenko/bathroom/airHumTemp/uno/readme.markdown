@@ -1,5 +1,5 @@
 #Pinouts NRF-UNO
-![NRF24L01 pinouts](https://github.com/DavydenkoAnton/Arduino/tree/master/eva/points/panchenko/bathroom/airHumTemp/uno/images)<br>
+![](https://github.com/DavydenkoAnton/Arduino/blob/master/eva/points/panchenko/bathroom/airHumTemp/uno/images/Pinout-of-nRF24L01.png)<br>
 
 #Pinouts NRF-UNO
 **GND-gnd VCC-3v
