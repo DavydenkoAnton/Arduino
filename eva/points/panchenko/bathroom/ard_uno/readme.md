@@ -1,5 +1,5 @@
-pinouts
-GND-gnd VCC-3v
+#Pinouts NRF-UNO
+**GND-gnd VCC-3v
 CE-D4   CSN-D2
 SCK-D5  MOSI-D7
-MISO-D6 IRQ-none
+MISO-D6 IRQ-none**
