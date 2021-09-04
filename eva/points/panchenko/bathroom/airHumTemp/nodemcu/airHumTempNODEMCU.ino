@@ -30,11 +30,9 @@ MQ135 gasSensor = MQ135(A0);
 RF24 radio(D4, D2); // Создаём объект radio с указанием выводов CE и CSN
 int potValue[1]; // Создаём массив для передачи значений nrf24l01
 
-float humidity, temperature;
+
 int pinCooler = D3;
 byte addresses[][6] = {"1Node", "2Node"}; /*адреса каналов приема и передачи*/
-int msg[1];
-int count = 0;
 
 
 void setup() {
@@ -76,34 +74,75 @@ void setup() {
   Firebase.setString(firebaseData, "panchenko/bathroom/realod/date", getDate());
 
   pinMode(LED_BUILTIN, OUTPUT);
+
 }
 
 
 void loop() {
-  
+
   if (timer.endOfPeriod()) {
     /*Firebase.getString(firebaseData, "panchenko/mode");
       String s = firebaseData.stringData(); */
 
     /*read and upload zero value*/
     //http://digitrode.ru/computing-devices/mcu_cpu/3142-arduino-i-datchik-mq-135-izmerenie-koncentracii-uglekislogo-gaza-v-vozduhe.html
-    float ppm = gasSensor.getPPM();
-    Firebase.setFloat(firebaseData, "panchenko/bathroom/values/MQ135_zero", ppm );
+    //float ppm = gasSensor.getPPM();
+    //Firebase.setFloat(firebaseData, "panchenko/bathroom/values/ppm", ppm );
 
     /*read and upload humidity, temperature value*/
-    Firebase.setFloat(firebaseData, "panchenko/bathroom/values/humidity", getHumidity());
-    Firebase.setFloat(firebaseData, "panchenko/bathroom/values/temperature", getTemperature());
+    //Firebase.setFloat(firebaseData, "panchenko/bathroom/values/humidity", getHumidity());
+    //Firebase.setFloat(firebaseData, "panchenko/bathroom/values/temperature", getTemperature());
 
     /*nrf send*/
-    String ht = String(getHumidity()) + String(getTemperature());
-    uint8_t dataArray[ht.length()];
-    ht.getBytes(dataArray, ht.length());
-
-    potValue[0] = count; // Считываем показания потенциометра
-    radio.write(potValue, 1); // Отправляем считанные показания по радиоканалу
-    count++;
-
+    sendPpmNRF24();
+    sendHumidityNRF24();
+    sendTemperatureNRF24();
+    digitalWrite(LED_BUILTIN, HIGH);
   }
+}
+
+void sendHumidityNRF24() {
+  char message[32];
+  char humArr[5];
+  float hfloat = getHumidity();
+  dtostrf(hfloat, 4, 1, humArr);
+  message[0] = 'h';
+  message[1] = 'u';
+  message[2] = 'm';
+  for (int i = 0; i < 4; i++) {
+    message[i + 3] = humArr[i];
+  }
+  radio.write(&message, sizeof(message) );
+}
+
+void sendTemperatureNRF24() {
+  char message[32];
+  char tempArr[5];
+  float tfloat = getTemperature();
+  dtostrf(tfloat, 4, 1, tempArr);
+  String s = "temp";
+  for (int i = 0; i < s.length(); i++) {
+    message[i] = s[i];
+  }
+  for (int i = 0; i < s.length(); i++) {
+    message[i + s.length()] = tempArr[i];
+  }
+  radio.write(&message, sizeof(message) );
+}
+
+void sendPpmNRF24() {
+  char message[32];
+  char ppmArr[6];
+  float tfloat = gasSensor.getPPM();
+  dtostrf(tfloat, 7, 1, ppmArr);
+  String s = "ppm";
+  for (int i = 0; i < s.length(); i++) {
+    message[i] = s[i];
+  }
+  for (int i = 0; i < s.length(); i++) {
+    message[i + s.length()] = ppmArr[i];
+  }
+  radio.write(&message, sizeof(message) );
 }
 
 String getDate() {
@@ -115,11 +154,11 @@ String getDate() {
 }
 
 float getHumidity() {
-  float h = dht.readHumidity() > 0 ? dht.readHumidity() : 0;
-  return h;
+  float h = dht.readHumidity();
+  return h > 0 ? h : 0.0;
 }
 
 float getTemperature() {
-  float t = dht.readTemperature() > 0 ? dht.readTemperature() : 0;
-  return t;
+  float t = dht.readTemperature();
+  return t > 0 ? t : 0.0;
 }
