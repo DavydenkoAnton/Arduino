@@ -94,14 +94,15 @@ void loop() {
     //Firebase.setFloat(firebaseData, "panchenko/bathroom/values/temperature", getTemperature());
 
     /*nrf send*/
-    sendPpmNRF24();
-    sendHumidityNRF24();
-    sendTemperatureNRF24();
+    sendPPM_NRF24();
+    sendHumidity_NRF24();
+    sendTemperature_NRF24();
+    sendCooler_NRF4();
     digitalWrite(LED_BUILTIN, HIGH);
   }
 }
 
-void sendHumidityNRF24() {
+void sendHumidity_NRF24() {
   char message[32];
   char humArr[5];
   float hfloat = getHumidity();
@@ -115,7 +116,7 @@ void sendHumidityNRF24() {
   radio.write(&message, sizeof(message) );
 }
 
-void sendTemperatureNRF24() {
+void sendTemperature_NRF24() {//
   char message[32];
   char tempArr[5];
   float tfloat = getTemperature();
@@ -130,17 +131,36 @@ void sendTemperatureNRF24() {
   radio.write(&message, sizeof(message) );
 }
 
-void sendPpmNRF24() {
+void sendPPM_NRF24() {
   char message[32];
-  char ppmArr[6];
-  float tfloat = gasSensor.getPPM();
-  dtostrf(tfloat, 7, 1, ppmArr);
+  char ppmArr[7];
+  int divider = 100000;
+  int length = 6;
+  int ppm = getPPM();
+  itoa(ppm, ppmArr, 10);
   String s = "ppm";
   for (int i = 0; i < s.length(); i++) {
     message[i] = s[i];
   }
-  for (int i = 0; i < s.length(); i++) {
+  for (int i = length; i > 0 ; i--) {
+    if (ppm / divider > 0) {
+      break;
+    } else {
+      divider /= 10;
+      length--;
+    }
+  }
+  for (int i = 0; i < length; i++) {
     message[i + s.length()] = ppmArr[i];
+  }
+  radio.write(&message, sizeof(message) );
+}
+
+void sendCooler_NRF4() {
+  char message[32];
+  String s = "cooler";
+  for (int i = 0; i < s.length(); i++) {
+    message[i] = s[i];
   }
   radio.write(&message, sizeof(message) );
 }
@@ -161,4 +181,9 @@ float getHumidity() {
 float getTemperature() {
   float t = dht.readTemperature();
   return t > 0 ? t : 0.0;
+}
+
+float getPPM() {
+  float ppm = gasSensor.getPPM();
+  return ppm > 200 ? ppm : 0.0;
 }
