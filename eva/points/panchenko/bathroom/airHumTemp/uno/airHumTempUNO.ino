@@ -3,15 +3,12 @@
 #include <SPI.h>;                 // Библиотека для работы с шиной SPI
 #include <nRF24L01.h>;;           // Файл конфигурации для библиотеки RF24
 #include <RF24.h>;                // Библиотека для работы с модулем NRF24L01
-
 #include "ITimer.h"
-
 
 #define MAIN_LEVEL_PIN 2
 #define RESERVE_LEVEL_PIN 3
 #define COOLER_VAPORIZER_PIN 4
-#define PUMP_PIN 7
-
+#define SENSOR_COOLER_PIN 7
 
 int humid, temp;
 int count = 0;
@@ -21,22 +18,20 @@ String humidityData;
 String temperatureData;
 String ppmData;
 String coolerData;
+bool coolerBtnTouch = false;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RF24 radio(9, 10);  //CE,CSN
 ITimer pageTimer(5); // seconds
+ITimer sensCoolerTimer(5); // seconds
 
 void setup() {
   Serial.begin(115200);
 
-  pinMode(COOLER_VAPORIZER_PIN, OUTPUT);
-  pinMode(PUMP_PIN, OUTPUT);
-  pinMode(RESERVE_LEVEL_PIN, INPUT);
-  pinMode(MAIN_LEVEL_PIN, INPUT);
+  pinMode(SENSOR_COOLER_PIN, INPUT);
 
   lcd.init();
   lcd.backlight();// Включаем подсветку дисплея
-  lcd.setCursor(0, 0);
 
   radio.begin();  // Инициализация модуля NRF24L01
   radio.setChannel(5); // Обмен данными будет вестись на пятом канале (2,405 ГГц)
@@ -48,8 +43,24 @@ void setup() {
   gtreetingPage();
 }
 
+/************** loop  *****************/
+void loop() {  
+  pageSwitcher();
+  getNrf24Data();
+  buttonListener();
+}
 
-void loop() {
+/************** page adapter  *****************/
+void buttonListener(){
+  if(sensCoolerTimer.endOfPeriod()){
+      coolerBtnTouch = true;
+    }
+  if(digitalRead(SENSOR_COOLER_PIN)==HIGH && coolerBtnTouch){
+      coolerBtnTouch = false;
+    }
+}
+/************** page adapter  *****************/
+void pageSwitcher(){
   if (pageTimer.endOfPeriod()) {
     switch (pageIndex) {
       case 1:
@@ -70,10 +81,7 @@ void loop() {
         break;
     }
   }
-
-  getNrf24Data();
 }
-
 
 void gtreetingPage() {
   lcd.clear();
@@ -108,7 +116,7 @@ void coolerPage() {
   lcd.setCursor(5, 0);
   lcd.print(coolerData);
 }
-
+/************** nrf adapter  *****************/
 void getNrf24Data() {
   if (radio.available()) { // Если в буфер приёмника поступили данные
     char msg[32];
@@ -129,9 +137,7 @@ void getNrf24Data() {
     }
   }
 }
-
-
-
+/************** print lcd adapter  *****************/
 void printLcdHumidity() {
   byte humidity[8] = {B00100,  B00100, B01110,  B11111,  B11111,  B11111,  B01110,  B00000};
   lcd.createChar(1, humidity);
