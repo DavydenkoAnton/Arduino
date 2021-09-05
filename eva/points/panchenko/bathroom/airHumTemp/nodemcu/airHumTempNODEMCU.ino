@@ -33,7 +33,7 @@ int potValue[1]; // Создаём массив для передачи знач
 
 int pinCooler = D3;
 byte addresses[][6] = {"1Node", "2Node"}; /*адреса каналов приема и передачи*/
-
+String coolerData = "coolerOFF";
 
 void setup() {
 
@@ -64,6 +64,8 @@ void setup() {
   radio.setDataRate (RF24_1MBPS); // Скорость обмена данными 1 Мбит/сек
   radio.setPALevel(RF24_PA_HIGH); // Выбираем высокую мощность передатчика (-6dBm)
   radio.openWritingPipe(0x7878787878LL); // Открываем трубу с уникальным ID
+  radio.openReadingPipe(1, 0x6969696969AA);
+  radio.startListening();
 
   /*time client init*/
   timeClient.begin();
@@ -79,7 +81,30 @@ void setup() {
 
 
 void loop() {
+  getRadioData();
+  sendRadioData();
+}
 
+void getRadioData() {
+  if (radio.available()) { // Если в буфер приёмника поступили данные
+    char msg[32];
+    String s = "";
+    radio.read( &msg, sizeof(msg) );
+    for (int i = 0; i < 32; i++) {
+      s += msg[i];
+    }
+    if (s.startsWith("coolerON")) {
+      coolerData = "coolerON";
+      //todo coolerOn();
+    } else if (s.startsWith("coolerOFF")) {
+      coolerData = "coolerOFF";
+      //todo coolerOff();
+    }
+    //Firebase.setString(firebaseData, "panchenko/bathroom/values/cooler", coolerData);
+  }
+}
+
+void sendRadioData() {
   if (timer.endOfPeriod()) {
     /*Firebase.getString(firebaseData, "panchenko/mode");
       String s = firebaseData.stringData(); */
@@ -113,7 +138,9 @@ void sendHumidity_NRF24() {
   for (int i = 0; i < 4; i++) {
     message[i + 3] = humArr[i];
   }
+  radio.stopListening();
   radio.write(&message, sizeof(message) );
+  radio.startListening();
 }
 
 void sendTemperature_NRF24() {//
@@ -128,7 +155,9 @@ void sendTemperature_NRF24() {//
   for (int i = 0; i < s.length(); i++) {
     message[i + s.length()] = tempArr[i];
   }
+  radio.stopListening();
   radio.write(&message, sizeof(message) );
+  radio.startListening();
 }
 
 void sendPPM_NRF24() {
@@ -153,16 +182,19 @@ void sendPPM_NRF24() {
   for (int i = 0; i < length; i++) {
     message[i + s.length()] = ppmArr[i];
   }
+  radio.stopListening();
   radio.write(&message, sizeof(message) );
+  radio.startListening();
 }
 
 void sendCooler_NRF4() {
   char message[32];
-  String s = "cooler";
-  for (int i = 0; i < s.length(); i++) {
-    message[i] = s[i];
+  for (int i = 0; i < coolerData.length(); i++) {
+    message[i] = coolerData[i];
   }
+  radio.stopListening();
   radio.write(&message, sizeof(message) );
+  radio.startListening();
 }
 
 String getDate() {
@@ -184,6 +216,7 @@ float getTemperature() {
 }
 
 float getPPM() {
+  float offValue = 150000.0;
   float ppm = gasSensor.getPPM();
-  return ppm > 200 ? ppm : 0.0;
+  return ppm < offValue ? ppm : 0.0;
 }
